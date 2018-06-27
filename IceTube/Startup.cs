@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Google.Apis.Util.Store;
 using IceTube.Google;
+using IceTube.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -33,14 +35,19 @@ namespace IceTube
                 options.CheckConsentNeeded = context => false;
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
-            
+
+            services.AddTransient<IDataStore, EfGoogleDataStore>();
             services.AddTransient<GoogleAccount>();
 
+            services.AddMemoryCache();
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+
+            services.AddHostedService<UserSubscriptionsTask>();
+            services.AddSingleton<UserSubscriptionsTask>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ApplicationDbContext context)
         {
             if (env.IsDevelopment())
             {
@@ -57,6 +64,8 @@ namespace IceTube
             app.UseCookiePolicy();
 
             app.UseMvc();
+
+            context.Database.Migrate();
         }
     }
 }

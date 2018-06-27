@@ -1,23 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using Google.Apis.Auth.OAuth2;
-using Google.Apis.Services;
-using Google.Apis.Util.Store;
-using Google.Apis.YouTube.v3;
 using IceTube.Google;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Configuration;
 
-namespace IceTube.Pages
+namespace IceTube.Pages.Authentication
 {
     public class IndexModel : PageModel
     {
         private readonly GoogleAccount _googleAccount;
+
+        public string Username { get; set; }
 
         public bool HasSetupGoogleAccount { get; set; }
 
@@ -28,7 +23,9 @@ namespace IceTube.Pages
 
         public async Task OnGetAsync()
         {
-            HasSetupGoogleAccount = await _googleAccount.HasSetup();
+            var credential = await _googleAccount.GetGoogleUserCredentials();
+
+            Username = credential.UserId;
         }
     }
 }

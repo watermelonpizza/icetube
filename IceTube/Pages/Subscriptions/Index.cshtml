@@ -1,0 +1,60 @@
+﻿@page
+@model Subscriptions.IndexModel
+
+@{
+    ViewData["Title"] = "Subscriptions";
+}
+
+<h2>Subscriptions</h2>
+
+@if (!Model.Subscription.Any())
+{
+    <p>You don't have any subscriptions. Update your subscription feed: <a href="javascript:void(0);" onclick="updateFeed();">click here</a></p>
+
+    <script>
+        function updateFeed() {
+            $.post({
+                url: '@Url.Action(nameof(TasksController.UpdateSubscriptions), "Tasks")',
+            })
+                .done(function (result) {
+                    new Noty({
+                        theme: 'mint',
+                        type: 'success',
+                        text: result
+                    }).show();
+                });
+        }
+    </script>
+}
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.Subscription[0].Name)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Subscription[0].Description)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Subscription[0].LastCheckedAt)
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.Subscription)
+        {
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Name)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Description)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.LastCheckedAt)
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

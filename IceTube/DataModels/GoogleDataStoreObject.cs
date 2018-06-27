@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace IceTube.Google
+namespace IceTube.DataModels
 {
     public class GoogleDataStoreObject
     {

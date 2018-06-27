@@ -7,22 +7,29 @@ using Google.Apis.Services;
 using Google.Apis.Util.Store;
 using Google.Apis.YouTube.v3;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace IceTube.Google
 {
     public class GoogleAccount
     {
         private const string DataStoreKey = "user";
+        private const string GoogleUserCredentialsMemoryKey = "GoogleCredentials";
 
+        private readonly IMemoryCache _cache;
         private readonly IConfiguration _configuration;
         private readonly ApplicationDbContext _context;
         private readonly IDataStore _dataStore;
 
         public GoogleAccount(
+            IMemoryCache memoryCache,
             IConfiguration configuration,
             ApplicationDbContext context,
             IDataStore dataStore)
         {
+            _cache = memoryCache;
             _configuration = configuration;
             _context = context;
             _dataStore = dataStore;
@@ -33,68 +40,72 @@ namespace IceTube.Google
             return await _context.GoogleDataStores.AnyAsync();
         }
 
-        public async Task GetGoogleAccount()
+        public async Task<UserCredential> GetGoogleUserCredentials()
         {
-            UserCredential credential;
-            var secrets = new ClientSecrets
-            {
-                ClientId = _configuration["Google:ClientId"],
-                ClientSecret = _configuration["Google:ClientSecret"]
-            };
+            UserCredential credential =
+                await _cache.GetOrCreateAsync(
+                    GoogleUserCredentialsMemoryKey,
+                    async entry =>
+                    {
+                        var secrets = new ClientSecrets
+                        {
+                            ClientId = _configuration["Google:ClientId"],
+                            ClientSecret = _configuration["Google:ClientSecret"]
+                        };
 
-            credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
-                secrets,
-                // This OAuth 2.0 access scope allows for read-only access to the authenticated 
-                // user's account, but not other types of account access.
-                new[] { YouTubeService.Scope.YoutubeReadonly },
-                "user",
-                CancellationToken.None,
-                _dataStore
-            );
+                        entry.SetSlidingExpiration(TimeSpan.FromDays(1));
+
+                        return await GoogleWebAuthorizationBroker.AuthorizeAsync(
+                            secrets,
+                            // This OAuth 2.0 access scope allows for read-only access to the authenticated 
+                            // user's account, but not other types of account access.
+                            new[] { YouTubeService.Scope.YoutubeReadonly },
+                            "user",
+                            CancellationToken.None,
+                            _dataStore);
+                    }
+                );
+
+            return credential;
+        }
+
+        public async Task<List<GoogleSubscription>> GetSubscriptionsAsync()
+        {
+            var creds = await GetGoogleUserCredentials();
 
             var youtubeService = new YouTubeService(
                 new BaseClientService.Initializer()
                 {
-                    HttpClientInitializer = credential,
+                    HttpClientInitializer = creds,
                     ApplicationName = "IceTube"
                 });
 
-            var subs = youtubeService.Subscriptions.List("id");
 
-            var channelsListRequest = youtubeService.Channels.List("contentDetails");
-            channelsListRequest.Mine = true;
+            List<GoogleSubscription> results = new List<GoogleSubscription>();
 
-            // Retrieve the contentDetails part of the channel resource for the authenticated user's channel.
-            var channelsListResponse = await channelsListRequest.ExecuteAsync();
-
-            foreach (var channel in channelsListResponse.Items)
+            var nextPageToken = "";
+            while (nextPageToken != null)
             {
-                // From the API response, extract the playlist ID that identifies the list
-                // of videos uploaded to the authenticated user's channel.
-                var uploadsListId = channel.ContentDetails.RelatedPlaylists.Uploads;
+                var subs = youtubeService.Subscriptions.List("snippet");
+                subs.Mine = true;
+                subs.MaxResults = 50;
+                subs.PageToken = nextPageToken;
 
-                Console.WriteLine("Videos in list {0}", uploadsListId);
+                var result = await subs.ExecuteAsync();
 
-                var nextPageToken = "";
-                while (nextPageToken != null)
-                {
-                    var playlistItemsListRequest = youtubeService.PlaylistItems.List("snippet");
-                    playlistItemsListRequest.PlaylistId = uploadsListId;
-                    playlistItemsListRequest.MaxResults = 50;
-                    playlistItemsListRequest.PageToken = nextPageToken;
+                results.AddRange(
+                    result.Items.Select(
+                        x => new GoogleSubscription
+                        {
+                            Id = x.Snippet.ResourceId.ChannelId,
+                            Name = x.Snippet.Title,
+                            Description = x.Snippet.Description
+                        }));
 
-                    // Retrieve the list of videos uploaded to the authenticated user's channel.
-                    var playlistItemsListResponse = await playlistItemsListRequest.ExecuteAsync();
-
-                    foreach (var playlistItem in playlistItemsListResponse.Items)
-                    {
-                        // Print information about each video.
-                        Console.WriteLine("{0} ({1})", playlistItem.Snippet.Title, playlistItem.Snippet.ResourceId.VideoId);
-                    }
-
-                    nextPageToken = playlistItemsListResponse.NextPageToken;
-                }
+                nextPageToken = result.NextPageToken;
             }
+
+            return results;
         }
     }
 }

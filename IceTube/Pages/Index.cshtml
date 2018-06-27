@@ -3,3 +3,12 @@
 @{
     ViewData["Title"] = "Home page";
 }
+
+@if (Model.HasSetupGoogleAccount)
+{
+    <a asp-page="/Subscriptions/Index">Your Subscriptions</a>
+}
+else
+{
+    <div>You haven't authenticated IceTube with google, please do so by clicking <a asp-page="/Authentication/Index">here</a></div>
+}

@@ -1,4 +1,5 @@
 ﻿using Google.Apis.Util.Store;
+using IceTube.DataModels;
 using IceTube.Google;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -53,6 +54,11 @@ namespace IceTube
             }
 
             var item = await _context.GoogleDataStores.FirstOrDefaultAsync(x => x.Key == key);
+
+            if (item == null)
+            {
+                return default(T);
+            }
 
             if (item.SourceType != typeof(T).FullName)
             {
