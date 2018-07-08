@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using IceTube.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace IceTube.Controllers
@@ -16,26 +18,50 @@ namespace IceTube.Controllers
         private readonly ILogger<TasksController> _logger;
         private readonly ApplicationDbContext _context;
         private readonly UserSubscriptionsTask _userSubscriptionsTask;
+        private readonly YoutubeChannelFeedTask _youtubeChannelFeedTask;
 
-        public TasksController(ILogger<TasksController> logger, ApplicationDbContext context, UserSubscriptionsTask userSubscriptionsTask)
+        public TasksController(
+            ILogger<TasksController> logger, 
+            ApplicationDbContext context,
+            IServiceProvider serviceProvider)
         {
             _logger = logger;
             _context = context;
-            _userSubscriptionsTask = userSubscriptionsTask;
+
+            var services = serviceProvider.GetServices<IHostedService>();
+
+            _userSubscriptionsTask = services.OfType<UserSubscriptionsTask>().Single();
+            _youtubeChannelFeedTask = services.OfType<YoutubeChannelFeedTask>().Single();
         }
 
         [HttpPost]
-        [Route("update-subscriptions")]
-        public IActionResult UpdateSubscriptions()
+        [Route("update")]
+        public IActionResult UpdateTaskNow(string task)
         {
-            if (_userSubscriptionsTask.QueueNow(HttpContext.RequestAborted, out string error))
+            if (task == UserSubscriptionsTask.UserSubscriptionsTaskName)
             {
-                return Ok("Updating subscriptions");
+                if (_userSubscriptionsTask.QueueNow(HttpContext.RequestAborted, out string error))
+                {
+                    return Ok("Updating subscriptions");
+                }
+                else
+                {
+                    return Conflict($"Could not run update subscriptions task right now. Error: {error}");
+                }
             }
-            else
+            else if (task == YoutubeChannelFeedTask.YoutubeChannelFeedTaskName)
             {
-                return Conflict($"Could not run update subscriptions task right now. Error: {error}");
+                if (_youtubeChannelFeedTask.QueueNow(HttpContext.RequestAborted, out string error))
+                {
+                    return Ok("Updating channel feeds");
+                }
+                else
+                {
+                    return Conflict($"Could not run channel feed update task right now. Error: {error}");
+                }
             }
+
+            return NotFound("A task by that name wasn't found");
         }
     }
 }

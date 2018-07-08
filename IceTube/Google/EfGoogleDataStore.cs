@@ -11,10 +11,10 @@ using System.Threading.Tasks;
 
 namespace IceTube
 {
-    public class EfGoogleDataStore : IDataStore
+    public class EfGoogleDataStore : IDataStore, IDisposable
     {
         private readonly ApplicationDbContext _context;
-        private ILogger<EfGoogleDataStore> _logger;
+        private readonly ILogger<EfGoogleDataStore> _logger;
 
         public EfGoogleDataStore(ApplicationDbContext context, ILogger<EfGoogleDataStore> logger)
         {
@@ -70,15 +70,30 @@ namespace IceTube
 
         public async Task StoreAsync<T>(string key, T value)
         {
-            var newdataStore = new GoogleDataStoreObject
+            var store = await _context.GoogleDataStores.FindAsync(key);
+            if (store != null)
             {
-                Key = key,
-                SourceType = typeof(T).FullName,
-                Data = JsonConvert.SerializeObject(value)
-            };
+                store.SourceType = typeof(T).FullName;
+                store.Data = JsonConvert.SerializeObject(value);
+            }
+            else
+            {
+                var newdataStore = new GoogleDataStoreObject
+                {
+                    Key = key,
+                    SourceType = typeof(T).FullName,
+                    Data = JsonConvert.SerializeObject(value)
+                };
 
-            await _context.GoogleDataStores.AddAsync(newdataStore);
+                await _context.GoogleDataStores.AddAsync(newdataStore);
+            }
+
             await _context.SaveChangesAsync();
+        }
+
+        public void Dispose()
+        {
+            _context?.Dispose();
         }
     }
 }

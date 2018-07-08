@@ -1,0 +1,71 @@
+﻿@page
+@model IceTube.Pages.Tasks.IndexModel
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h2>Tasks</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.IceTubeTask[0].LastRan)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.IceTubeTask[0].LastRanSuccess)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.IceTubeTask[0].LastRanStatus)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.IceTubeTask)
+        {
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.LastRan)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.LastRanSuccess)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.LastRanStatus)
+                </td>
+                <td>
+                    <a href="javascript:void(0);"
+                       onclick="updateTask('@Url.Action(nameof(TasksController.UpdateTaskNow), "Tasks", new { task = item.TaskName })');">
+                        Run now
+                    </a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@section Scripts {
+    <script>
+        function updateTask(apiUrl) {
+            $.post({
+                url: apiUrl,
+            })
+                .done(function (result) {
+                    new Noty({
+                        theme: 'mint',
+                        type: 'success',
+                        text: result
+                    }).show();
+                })
+                .error(function (result) {
+                    new Noty({
+                        theme: 'mint',
+                        type: 'error',
+                        text: result
+                    }).show();
+                });
+        }
+    </script>
+}

@@ -46,12 +46,14 @@ namespace IceTube.Migrations
                     b.ToTable("Tasks");
                 });
 
-            modelBuilder.Entity("IceTube.DataModels.Subscription", b =>
+            modelBuilder.Entity("IceTube.DataModels.YoutubeChannel", b =>
                 {
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd();
 
                     b.Property<string>("Description");
+
+                    b.Property<bool>("Inactive");
 
                     b.Property<DateTime>("LastCheckedAt");
 
@@ -59,7 +61,52 @@ namespace IceTube.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Subscriptions");
+                    b.ToTable("Channels");
+                });
+
+            modelBuilder.Entity("IceTube.DataModels.YoutubeVideo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd();
+
+                    b.Property<string>("ActivityId");
+
+                    b.Property<DateTime>("AddedAt");
+
+                    b.Property<string>("ChannelId");
+
+                    b.Property<string>("Description");
+
+                    b.Property<bool>("DownloadError");
+
+                    b.Property<string>("DownloadErrorDetails");
+
+                    b.Property<int>("DownloadState");
+
+                    b.Property<DateTime?>("FinishedDownloadAt");
+
+                    b.Property<DateTime?>("PublishedAt");
+
+                    b.Property<DateTime?>("StartedDownloadAt");
+
+                    b.Property<string>("ThumbnailUrl");
+
+                    b.Property<string>("Title");
+
+                    b.Property<string>("VideoId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChannelId");
+
+                    b.ToTable("Videos");
+                });
+
+            modelBuilder.Entity("IceTube.DataModels.YoutubeVideo", b =>
+                {
+                    b.HasOne("IceTube.DataModels.YoutubeChannel", "Channel")
+                        .WithMany("Videos")
+                        .HasForeignKey("ChannelId");
                 });
 #pragma warning restore 612, 618
         }

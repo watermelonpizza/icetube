@@ -7,28 +7,23 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using IceTube;
 using IceTube.DataModels;
-using Microsoft.Extensions.DependencyInjection;
-using IceTube.Tasks;
 
-namespace IceTube.Pages.Subscriptions
+namespace IceTube.Pages.Tasks
 {
     public class IndexModel : PageModel
     {
         private readonly ApplicationDbContext _context;
-        private readonly UserSubscriptionsTask _subTask;
 
-        public IndexModel(ApplicationDbContext context, UserSubscriptionsTask subTask)
+        public IndexModel(ApplicationDbContext context)
         {
             _context = context;
-            _subTask = subTask;
         }
 
-        public IList<Subscription> Subscription { get;set; }
+        public IList<IceTubeTask> IceTubeTask { get;set; }
 
         public async Task OnGetAsync()
         {
-
-            Subscription = await _context.Subscriptions.ToListAsync();
+            IceTubeTask = await _context.Tasks.ToListAsync();
         }
     }
 }

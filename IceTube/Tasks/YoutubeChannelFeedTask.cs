@@ -13,18 +13,18 @@ using System.Threading.Tasks;
 
 namespace IceTube.Tasks
 {
-    public class UserSubscriptionsTask : ITask, IHostedService, IDisposable
+    public class YoutubeChannelFeedTask : ITask, IHostedService, IDisposable
     {
-        public const string UserSubscriptionsTaskName = "UserSubscriptions";
-        public static readonly TimeSpan Interval = TimeSpan.FromDays(7);
+        public const string YoutubeChannelFeedTaskName = "YoutubeChannelFeed";
+        public static readonly TimeSpan Interval = TimeSpan.FromMinutes(15);
 
-        private readonly ILogger<UserSubscriptionsTask> _logger;
+        private readonly ILogger<YoutubeChannelFeedTask> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
 
         private Timer _timer;
         private bool _isRunning = false;
 
-        public UserSubscriptionsTask(ILogger<UserSubscriptionsTask> logger, IServiceScopeFactory scopeFactory)
+        public YoutubeChannelFeedTask(ILogger<YoutubeChannelFeedTask> logger, IServiceScopeFactory scopeFactory)
         {
             _logger = logger;
             _scopeFactory = scopeFactory;
@@ -41,13 +41,13 @@ namespace IceTube.Tasks
                 try
                 {
                     result = _timer.Change(TimeSpan.Zero, Interval);
-                    _logger.LogInformation("User subscriptions update task was requested to run now, changed timer to run immediatly");
+                    _logger.LogInformation("Youtube channel feed task was requested to run now, changed timer to run immediatly");
 
                     return result;
                 }
                 catch (Exception e)
                 {
-                    error = "Failed to update user subscriptions update task when requested.";
+                    error = "Failed to update Youtube channel feed task when requested.";
                     _logger.LogError(e, error);
 
                     error += $" error: {e.Message}";
@@ -57,7 +57,7 @@ namespace IceTube.Tasks
             }
             else
             {
-                error = "User subscriptions update task was requested to run now, but the task is currently running. Skipping.";
+                error = "Youtube channel feed task was requested to run now, but the task is currently running. Skipping.";
                 _logger.LogInformation(error);
 
                 return false;
@@ -66,20 +66,20 @@ namespace IceTube.Tasks
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("User subscriptions update task is starting.");
+            _logger.LogInformation("Youtube channel feed task task is starting.");
 
             using (var scope = _scopeFactory.CreateScope())
             using (var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>())
             {
-                var task = await context.Tasks.FindAsync(new object[] { UserSubscriptionsTaskName }, cancellationToken);
+                var task = await context.Tasks.FindAsync(new object[] { YoutubeChannelFeedTaskName }, cancellationToken);
 
                 if (task == null)
                 {
-                    _logger.LogDebug("Update task was not found in the database. Creating an entry now");
+                    _logger.LogDebug("Youtube channel feed task was not found in the database. Creating an entry now");
 
                     task = new IceTubeTask
                     {
-                        TaskName = UserSubscriptionsTaskName
+                        TaskName = YoutubeChannelFeedTaskName
                     };
 
                     await context.Tasks.AddAsync(task, cancellationToken);
@@ -94,11 +94,11 @@ namespace IceTube.Tasks
 
                     if (dueTime.Ticks < 0)
                     {
-                        _logger.LogDebug("Update task was last ran older than the interval time. Set to run in 5 minutes");
-                        dueTime = TimeSpan.FromMinutes(5);
+                        _logger.LogDebug("Youtube channel feed task was last ran older than the interval time. Set to run in 1 minute");
+                        dueTime = TimeSpan.FromMinutes(1));
                     }
 
-                    _logger.LogInformation("Update task has a previous ran time, calculating next run time to be in {dueTime}", dueTime);
+                    _logger.LogInformation("Youtube channel feed task has a previous ran time, calculating next run time to be in {dueTime}", dueTime);
                 }
 
                 _logger.LogDebug("Setting timer");
@@ -113,7 +113,7 @@ namespace IceTube.Tasks
             {
                 if (!await googleAccount.HasSetup())
                 {
-                    _logger.LogWarning("User subscriptions update task wanted to run but user hasn't setup their account. Skipping.");
+                    _logger.LogWarning("Youtube channel feed task wanted to run but user hasn't setup their account. Skipping.");
 
                     return;
                 }
@@ -122,7 +122,7 @@ namespace IceTube.Tasks
 
                 using (var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>())
                 {
-                    var task = await context.Tasks.FindAsync(UserSubscriptionsTaskName);
+                    var task = await context.Tasks.FindAsync(YoutubeChannelFeedTaskName);
 
                     if (task == null)
                     {
@@ -131,50 +131,46 @@ namespace IceTube.Tasks
 
                     try
                     {
-                        _logger.LogInformation("Updating users subscription feed");
+                        _logger.LogInformation("Updating Youtube channel feeds");
 
-                        var youtubeSubscriptions = await googleAccount.GetSubscriptionsAsync();
-                        var iceTubeSubscriptions = await context.Channels.ToArrayAsync();
+                        var youtubeChannels = await context.Channels.ToArrayAsync();
 
-                        foreach (var youtubeSubscription in youtubeSubscriptions)
+                        foreach (var channel in youtubeChannels)
                         {
-                            var existingSubscription = iceTubeSubscriptions.FirstOrDefault(x => x.Id == youtubeSubscription.Id);
+                            _logger.LogInformation("Getting feed for channel '{channelName}'", channel.Name);
 
-                            if (existingSubscription == null)
+                            var youtubeActivities = await googleAccount.GetChannelActivityAsync(channel);
+
+                            // Update the channels last checked date as the channel feed update can take many minutes,
+                            // or in the case the update was interrupted, we don't want to collect unessasary activity feeds
+                            // for channels we already have updated to a specific date.
+                            channel.LastCheckedAt = DateTime.UtcNow;
+
+                            // Get all the upload acivities which we don't already have
+                            foreach (var activity in 
+                                youtubeActivities.Where(x => x.Type == YoutubeActivityType.Upload && !channel.Videos.Any(v => v.ActivityId == x.Id)))
                             {
-                                _logger.LogInformation("New subscription detected, adding subscription: {@newsubscription}", youtubeSubscription);
+                                _logger.LogInformation("New activity detected, adding upload {@newactivity}", activity);
 
-                                await context.Channels.AddAsync(
-                                    new YoutubeChannel
+                                await context.Videos.AddAsync(
+                                    new YoutubeVideo
                                     {
-                                        Id = youtubeSubscription.Id,
-                                        Name = youtubeSubscription.Name,
-                                        Description = youtubeSubscription.Description,
-                                        Inactive = false,
-                                        // New subscription found, set the last check at to now to start downloading from now
-                                        LastCheckedAt = DateTime.UtcNow 
+                                        ActivityId = activity.Id,
+                                        PublishedAt = activity.PublishedAt,
+                                        AddedAt = DateTime.UtcNow,
+                                        Title = activity.Title,
+                                        Description = activity.Description,
+                                        ThumbnailUrl = activity.ThumbnailUrl,
+                                        VideoId = activity.VideoId,
+                                        DownloadState = VideoDownloadState.NotStarted,
+                                        ChannelId = channel.Id
                                     });
                             }
-                            else if (youtubeSubscription.Name != existingSubscription.Name || youtubeSubscription.Description != existingSubscription.Description)
-                            {
-                                _logger.LogInformation("Updating existing subscription metadata: {@oldsubscription} => to => {@newsubscription}", existingSubscription, youtubeSubscription);
-
-                                existingSubscription.Name = youtubeSubscription.Name;
-                                existingSubscription.Description = youtubeSubscription.Description;
-                            }
                         }
 
-                        foreach (var oldSubscription in iceTubeSubscriptions.Where(x => !youtubeSubscriptions.Any(ytsub => ytsub.Id == x.Id)))
-                        {
-                            _logger.LogInformation("Old subscription detected. Probably unsubscribed, removing subscription: {@oldsubscription}", oldSubscription);
-
-                            // Flag this subscription as inactive. This will be skipped over on feed updates now.
-                            oldSubscription.Inactive = true;
-                        }
-
-                        _logger.LogDebug("Saving updated subscription data");
+                        _logger.LogDebug("Saving updated Youtube channel data");
                         await context.SaveChangesAsync();
-                        _logger.LogInformation("Saved updated subscription data");
+                        _logger.LogInformation("Saved updated Youtube channel data");
 
                         _logger.LogDebug("Updating task ran status");
 
@@ -189,7 +185,7 @@ namespace IceTube.Tasks
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError(e, "Update task unexpectedly threw an exception.");
+                        _logger.LogError(e, "Youtube channel feed task unexpectedly threw an exception.");
 
                         if (task != null)
                         {
@@ -210,7 +206,7 @@ namespace IceTube.Tasks
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("User subscriptions update task is stopping.");
+            _logger.LogInformation("Youtube channel feed task is stopping.");
 
             _timer?.Change(Timeout.Infinite, 0);
 
@@ -219,7 +215,7 @@ namespace IceTube.Tasks
 
         public void Dispose()
         {
-            _timer?.Dispose();
+            throw new NotImplementedException();
         }
     }
 }

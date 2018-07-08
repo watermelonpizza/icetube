@@ -1,0 +1,105 @@
+﻿@page
+@model IceTube.Pages.Videos.IndexModel
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h2>Index</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.YoutubeVideos[0].ActivityId)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.YoutubeVideos[0].VideoId)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.YoutubeVideos[0].PublishedAt)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.YoutubeVideos[0].AddedAt)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.YoutubeVideos[0].Title)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.YoutubeVideos[0].Description)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.YoutubeVideos[0].ThumbnailUrl)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.YoutubeVideos[0].DownloadState)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.YoutubeVideos[0].StartedDownloadAt)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.YoutubeVideos[0].FinishedDownloadAt)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.YoutubeVideos[0].DownloadError)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.YoutubeVideos[0].DownloadErrorDetails)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.YoutubeVideos[0].Channel)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model.YoutubeVideos) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.ActivityId)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.VideoId)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.PublishedAt)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.AddedAt)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Title)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Description)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ThumbnailUrl)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.DownloadState)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.StartedDownloadAt)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FinishedDownloadAt)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.DownloadError)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.DownloadErrorDetails)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Channel.Id)
+            </td>
+            <td>
+                <a asp-page="./Edit" asp-route-id="@item.Id">Edit</a> |
+                <a asp-page="./Details" asp-route-id="@item.Id">Details</a> |
+                <a asp-page="./Delete" asp-route-id="@item.Id">Delete</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

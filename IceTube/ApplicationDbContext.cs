@@ -29,9 +29,14 @@ namespace IceTube
         public DbSet<GoogleDataStoreObject> GoogleDataStores { get; set; }
 
         /// <summary>
-        /// The users youtube subscriptions
+        /// The users youtube subscriptions or possibly manually added channels
         /// </summary>
-        public DbSet<Subscription> Subscriptions { get; set; }
+        public DbSet<YoutubeChannel> Channels { get; set; }
+
+        /// <summary>
+        /// Videos which have been added to the system
+        /// </summary>
+        public DbSet<YoutubeVideo> Videos { get; set; }
 
         /// <summary>
         /// Information about all the tasks in the system, mostly to track last ran and success status

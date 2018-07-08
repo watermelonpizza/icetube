@@ -1,5 +1,5 @@
 ﻿@page
-@model Subscriptions.IndexModel
+@model Channels.IndexModel
 
 @{
     ViewData["Title"] = "Subscriptions";
@@ -9,17 +9,30 @@
 
 @if (!Model.Subscription.Any())
 {
-    <p>You don't have any subscriptions. Update your subscription feed: <a href="javascript:void(0);" onclick="updateFeed();">click here</a></p>
+    <p>
+        You don't have any subscriptions. Force update your subscription feed:
+        <a href="javascript:void(0);"
+           onclick="updateTask('@Url.Action(nameof(TasksController.UpdateTaskNow), "Tasks", new { task = UserSubscriptionsTask.UserSubscriptionsTaskName })');">
+            click here
+        </a>
+    </p>
 
     <script>
-        function updateFeed() {
+        function updateTask(apiUrl) {
             $.post({
-                url: '@Url.Action(nameof(TasksController.UpdateSubscriptions), "Tasks")',
+                url: apiUrl,
             })
                 .done(function (result) {
                     new Noty({
                         theme: 'mint',
                         type: 'success',
+                        text: result
+                    }).show();
+                })
+                .error(function (result) {
+                    new Noty({
+                        theme: 'mint',
+                        type: 'error',
                         text: result
                     }).show();
                 });
@@ -39,6 +52,7 @@
             <th>
                 @Html.DisplayNameFor(model => model.Subscription[0].LastCheckedAt)
             </th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
@@ -53,6 +67,9 @@
                 </td>
                 <td>
                     @Html.DisplayFor(modelItem => item.LastCheckedAt)
+                </td>
+                <td>
+                    <a asp-page="/Videos/Index" asp-route-channelId="@item.Id">Videos</a>
                 </td>
             </tr>
         }
